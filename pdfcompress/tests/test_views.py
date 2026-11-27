@@ -153,6 +153,20 @@ class StatusAndDownloadTests(PdfTestCase):
                 response = self.client.get(self.url("download", job))
                 self.assertEqual(response.status_code, 404)
 
+    def test_download_missing_file_is_404_not_500(self):
+        """Was wird geprüft: Antwort der Download-View, wenn die Ausgabedatei fehlt,
+        der Job-Datensatz aber auf DONE steht.
+        Warum: Der stündliche Aufräum-Job (`cleanup_old_jobs`) kann Dateien und
+        Zeile zwischen Status- und Download-Anfrage entfernen; ein Leseversuch auf
+        der fehlenden Datei warf bisher eine FileNotFoundError (500) statt 404.
+        Erwartung: 404 wie bei einem unbekannten Job, kein Serverfehler.
+        """
+        job = self.done_job()
+        job.output_file.delete(save=False)
+        self.client.force_login(self.user)
+        response = self.client.get(self.url("download", job))
+        self.assertEqual(response.status_code, 404)
+
     def test_other_users_get_404_even_superusers(self):
         job = self.done_job()
         users = get_user_model().objects

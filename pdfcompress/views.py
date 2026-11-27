@@ -77,6 +77,11 @@ class DownloadView(OwnJobMixin, View):
         if job.status != PdfJob.Status.DONE:
             raise Http404
         name = f"{Path(job.original_name).stem}_komprimiert.pdf"
-        return FileResponse(
-            job.output_file.open("rb"), as_attachment=True, filename=name
-        )
+        # Der stündliche Aufräum-Job kann Zeile und Dateien zwischen Status- und
+        # Download-Anfrage entfernen; das Fenster ist klein, aber real. Ohne die
+        # Behandlung hier gibt die Storage-Schicht eine FileNotFoundError -> 500.
+        try:
+            geoeffnet = job.output_file.open("rb")
+        except FileNotFoundError:
+            raise Http404
+        return FileResponse(geoeffnet, as_attachment=True, filename=name)
